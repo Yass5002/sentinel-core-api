@@ -211,9 +211,10 @@ func (s *EventService) CancelEvent(ctx context.Context, eventID, userID uuid.UUI
 func (s *EventService) GetExpiredUnfiredEvents(ctx context.Context) ([]models.Sequence, error) {
 	var sequences []models.Sequence
 
-	// Case 1: normal missed expirations (never claimed)
+	// Case 1: normal missed expirations (never claimed or waiting for retry)
 	result := s.db.Preload("Endpoints").Preload("Artifacts").
-		Where("terminated = false AND fired = false AND horizon <= ?", time.Now()).
+		Where("terminated = false AND fired = false AND horizon <= ? "+
+			"AND fire_attempts < 3 AND (next_retry_at IS NULL OR next_retry_at <= ?)", time.Now(), time.Now()).
 		Find(&sequences)
 	if result.Error != nil {
 		return nil, result.Error
@@ -224,7 +225,7 @@ func (s *EventService) GetExpiredUnfiredEvents(ctx context.Context) ([]models.Se
 	staleThreshold := time.Now().Add(-5 * time.Minute)
 	var stale []models.Sequence
 	result = s.db.Preload("Endpoints").Preload("Artifacts").
-		Where("terminated = false AND fired = true AND horizon <= ? AND updated_at <= ?", time.Now(), staleThreshold).
+		Where("terminated = false AND fired = true AND horizon <= ? AND updated_at <= ? AND fire_attempts < 3", time.Now(), staleThreshold).
 		Find(&stale)
 	if result.Error != nil {
 		return sequences, nil // return what we have, don't fail

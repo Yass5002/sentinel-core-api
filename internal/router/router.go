@@ -23,6 +23,7 @@ func Setup(
 	fileHandler *handlers.FileHandler,
 	profileHandler *handlers.ProfileHandler,
 	contactHandler *handlers.ContactHandler,
+	staticHandler *handlers.StaticHandler,
 	authService *services.AuthService,
 	db *gorm.DB,
 	rdb *redis.Client,
@@ -86,6 +87,10 @@ func Setup(
 		auth.POST("/otp/send", authHandler.SendOTP)
 		auth.POST("/otp/verify", authHandler.VerifyOTP)
 	}
+
+	// Static routes (public)
+	r.GET("/privacy", staticHandler.GetPrivacy)
+	r.GET("/terms", staticHandler.GetTerms)
 
 	// Protected routes
 	api := r.Group("/")

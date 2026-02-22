@@ -55,12 +55,14 @@ type Sequence struct {
 	Payload    string         `gorm:"column:payload;type:text" json:"message"`                  // custom message
 	Horizon    time.Time      `gorm:"column:horizon;not null" json:"expires_at"`                // timer expiry
 	DurationMS int64          `gorm:"column:duration_ms;not null" json:"duration_ms"`           // original duration in milliseconds
-	Pulse      bool           `gorm:"column:pulse;default:false" json:"checked_in"`             // true = user checked in
-	Terminated bool           `gorm:"column:terminated;default:false" json:"terminated"`        // true = event is done (checked in or fired)
-	Fired      bool           `gorm:"column:fired;default:false" json:"fired"`                  // true = alert emails were sent
-	CreatedAt  time.Time      `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt  time.Time      `gorm:"column:updated_at" json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"column:deleted_at;index" json:"-"`
+	Pulse        bool           `gorm:"column:pulse;default:false" json:"checked_in"`             // true = user checked in
+	Terminated   bool           `gorm:"column:terminated;default:false" json:"terminated"`        // true = event is done (checked in or fired)
+	Fired        bool           `gorm:"column:fired;default:false" json:"fired"`                  // true = alert emails were sent
+	FireAttempts int            `gorm:"column:fire_attempts;default:0" json:"fire_attempts"`      // number of times alert was attempted
+	NextRetryAt  *time.Time     `gorm:"column:next_retry_at" json:"next_retry_at,omitempty"`      // backoff time for retry
+	CreatedAt    time.Time      `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt    time.Time      `gorm:"column:updated_at" json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;index" json:"-"`
 
 	// Relations
 	Endpoints []Endpoint `gorm:"foreignKey:SequenceID" json:"contacts,omitempty"`

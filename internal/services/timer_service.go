@@ -149,7 +149,10 @@ func (s *TimerService) handleExpiration(ctx context.Context, eventID uuid.UUID) 
 	// Only one goroutine (keyspace listener OR backup poller) can win this race.
 	claimResult := s.db.Model(&models.Sequence{}).
 		Where("id = ? AND terminated = false AND fired = false", eventID).
-		Update("fired", true)
+		Updates(map[string]interface{}{
+			"fired":         true,
+			"fire_attempts": gorm.Expr("fire_attempts + 1"),
+		})
 	if claimResult.Error != nil {
 		log.Printf("Error claiming event %s: %v", eventID, claimResult.Error)
 		return
@@ -280,10 +283,25 @@ func (s *TimerService) handleExpiration(ctx context.Context, eventID uuid.UUID) 
 	}
 
 	if successCount == 0 && len(sequence.Endpoints) > 0 {
-		// All sends failed — unclaim so backup poller can retry later
-		log.Printf("ALL alerts failed for event %s — unclaiming for retry", eventID)
+		if sequence.FireAttempts < 3 {
+			// All sends failed — unclaim so backup poller can retry later with backoff
+			nextRetry := time.Now().Add(time.Duration(sequence.FireAttempts) * time.Minute)
+			log.Printf("ALL alerts failed for event %s (attempt %d/3) — unclaiming and retrying at %s", eventID, sequence.FireAttempts, nextRetry.Format(time.RFC3339))
+			s.db.Model(&models.Sequence{}).Where("id = ?", eventID).
+				Updates(map[string]interface{}{
+					"fired":         false,
+					"next_retry_at": nextRetry,
+				})
+			return
+		}
+
+		// Permanent failure after 3 cycles (total of 9 delivery attempts)
+		log.Printf("Event %s permanently failed after %d firing cycles — all alert delivery exhausted.", eventID, sequence.FireAttempts)
 		s.db.Model(&models.Sequence{}).Where("id = ?", eventID).
-			Updates(map[string]interface{}{"fired": false})
+			Updates(map[string]interface{}{
+				"terminated": true,
+				"fired":      true,
+			})
 		return
 	}
 
