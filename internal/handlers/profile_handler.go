@@ -58,3 +58,33 @@ func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "profile updated"})
 }
+
+type deleteAccountRequest struct {
+	Confirm bool `json:"confirm"`
+}
+
+// DeleteAccount handles DELETE /account
+func (h *ProfileHandler) DeleteAccount(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	var req deleteAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "confirmation required"})
+		return
+	}
+
+	if !req.Confirm {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "confirmation required"})
+		return
+	}
+
+	if err := h.profileService.DeleteAccount(c.Request.Context(), userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "account deleted successfully"})
+}

@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -171,20 +172,36 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 	}
 
 	filter := c.DefaultQuery("filter", "all")
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "20")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page parameter"})
+		return
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter"})
+		return
+	}
 
 	var events []interface{}
-	var err error
+	var total int64
 
 	switch filter {
 	case "active":
-		result, e := h.eventService.ListActiveEvents(c.Request.Context(), userID)
+		result, t, e := h.eventService.ListActiveEvents(c.Request.Context(), userID, page, limit)
 		err = e
+		total = t
 		for _, ev := range result {
 			events = append(events, ev)
 		}
 	default:
-		result, e := h.eventService.ListEvents(c.Request.Context(), userID)
+		result, t, e := h.eventService.ListEvents(c.Request.Context(), userID, page, limit)
 		err = e
+		total = t
 		for _, ev := range result {
 			events = append(events, ev)
 		}
@@ -195,7 +212,19 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"events": events})
+	if events == nil {
+		events = make([]interface{}, 0)
+	}
+
+	hasMore := (int64(page) * int64(limit)) < total
+
+	c.JSON(http.StatusOK, gin.H{
+		"events":      events,
+		"total_count": total,
+		"page":        page,
+		"limit":       limit,
+		"has_more":    hasMore,
+	})
 }
 
 // CheckIn handles POST /events/:id/checkin
@@ -238,4 +267,33 @@ func (h *EventHandler) CancelEvent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "event cancelled"})
+}
+
+// DeleteHistory handles DELETE /events/:id/history
+func (h *EventHandler) DeleteHistory(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	eventID, err := parseUUID(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event ID"})
+		return
+	}
+
+	if err := h.eventService.DeleteEventHistory(c.Request.Context(), eventID, userID); err != nil {
+		if err.Error() == "cannot delete an active event" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, apperrors.ErrEventNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "event history deleted"})
 }

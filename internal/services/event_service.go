@@ -120,30 +120,46 @@ func (s *EventService) GetEvent(ctx context.Context, eventID, userID uuid.UUID) 
 	return &sequence, nil
 }
 
-// ListEvents returns all events for a user.
-func (s *EventService) ListEvents(ctx context.Context, userID uuid.UUID) ([]models.Sequence, error) {
+// ListEvents returns paginated events for a user.
+func (s *EventService) ListEvents(ctx context.Context, userID uuid.UUID, page, limit int) ([]models.Sequence, int64, error) {
 	var sequences []models.Sequence
+	var total int64
+
+	if err := s.db.Model(&models.Sequence{}).Where("entity_id = ?", userID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
 	result := s.db.Preload("Endpoints").Preload("Artifacts").
 		Where("entity_id = ?", userID).
 		Order("created_at DESC").
+		Offset(offset).Limit(limit).
 		Find(&sequences)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, 0, result.Error
 	}
-	return sequences, nil
+	return sequences, total, nil
 }
 
-// ListActiveEvents returns only active (non-terminated) events for a user.
-func (s *EventService) ListActiveEvents(ctx context.Context, userID uuid.UUID) ([]models.Sequence, error) {
+// ListActiveEvents returns paginated active (non-terminated) events for a user.
+func (s *EventService) ListActiveEvents(ctx context.Context, userID uuid.UUID, page, limit int) ([]models.Sequence, int64, error) {
 	var sequences []models.Sequence
+	var total int64
+
+	if err := s.db.Model(&models.Sequence{}).Where("entity_id = ? AND terminated = false", userID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
 	result := s.db.Preload("Endpoints").Preload("Artifacts").
 		Where("entity_id = ? AND terminated = false", userID).
 		Order("horizon ASC").
+		Offset(offset).Limit(limit).
 		Find(&sequences)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, 0, result.Error
 	}
-	return sequences, nil
+	return sequences, total, nil
 }
 
 // CheckIn marks an event as checked in and terminates it.
@@ -233,4 +249,52 @@ func (s *EventService) MarkFired(ctx context.Context, eventID uuid.UUID) error {
 			"fired":      true,
 			"terminated": true,
 		}).Error
+}
+
+// ClearUserTimers removes all Redis timers associated with the user's active events.
+func (s *EventService) ClearUserTimers(ctx context.Context, userID uuid.UUID) error {
+	var activeIDs []uuid.UUID
+	if err := s.db.Model(&models.Sequence{}).Where("entity_id = ? AND terminated = false", userID).Pluck("id", &activeIDs).Error; err != nil {
+		return fmt.Errorf("failed to fetch active events: %w", err)
+	}
+
+	for _, id := range activeIDs {
+		timerKey := fmt.Sprintf("timer:%s", id.String())
+		if err := s.rdb.Del(ctx, timerKey).Err(); err != nil {
+			log.Printf("Warning: failed to delete redis timer for event %s: %v", id, err)
+		}
+	}
+	return nil
+}
+
+// DeleteEventHistory deletes a terminated event and its associated data permanently from history.
+func (s *EventService) DeleteEventHistory(ctx context.Context, eventID, userID uuid.UUID) error {
+	var sequence models.Sequence
+	result := s.db.Where("id = ? AND entity_id = ?", eventID, userID).First(&sequence)
+	if result.Error != nil {
+		return apperrors.ErrEventNotFound
+	}
+
+	if !sequence.Terminated {
+		return fmt.Errorf("cannot delete an active event")
+	}
+
+	// Delete associated files from S3
+	if err := s.fileService.DeleteEventFilesFromS3(ctx, eventID, userID); err != nil {
+		return fmt.Errorf("failed to delete event files from S3: %w", err)
+	}
+
+	// Transactional DB cascade
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Unscoped().Where("sequence_id = ?", eventID).Delete(&models.Endpoint{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("sequence_id = ?", eventID).Delete(&models.Artifact{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("id = ?", eventID).Delete(&models.Sequence{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }

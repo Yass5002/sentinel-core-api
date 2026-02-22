@@ -112,3 +112,32 @@ func (h *FileHandler) DeleteStaged(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "file deleted"})
 }
+
+// Download handles GET /files/:id/download
+func (h *FileHandler) Download(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	fileID, err := parseUUID(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid UUID format"})
+		return
+	}
+
+	artifact, err := h.fileService.GetFile(c.Request.Context(), fileID, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "file not found or unauthorized"})
+		return
+	}
+
+	data, err := h.fileService.DownloadFile(c.Request.Context(), artifact.AssetKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to download file: " + err.Error()})
+		return
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, artifact.FileName))
+	c.Data(http.StatusOK, artifact.MimeType, data)
+}

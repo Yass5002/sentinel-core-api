@@ -97,11 +97,13 @@ func Setup(
 		api.GET("/events/:id", eventHandler.GetEvent)
 		api.POST("/events/:id/checkin", eventHandler.CheckIn)
 		api.DELETE("/events/:id", eventHandler.CancelEvent)
+		api.DELETE("/events/:id/history", eventHandler.DeleteHistory)
 
 		// File uploads (staged — upload before creating event)
 		api.POST("/files", fileHandler.Upload)
 		api.GET("/files", fileHandler.ListStaged)
 		api.DELETE("/files/:id", fileHandler.DeleteStaged)
+		api.GET("/files/:id/download", fileHandler.Download)
 
 		// Location
 		api.POST("/location", locationHandler.UpdateLocation)
@@ -110,6 +112,7 @@ func Setup(
 		// Profile
 		api.GET("/profile", profileHandler.GetProfile)
 		api.PATCH("/profile", profileHandler.UpdateProfile)
+		api.DELETE("/account", profileHandler.DeleteAccount)
 
 		// Saved Contacts
 		api.GET("/contacts", contactHandler.ListContacts)

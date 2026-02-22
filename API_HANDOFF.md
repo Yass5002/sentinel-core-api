@@ -22,6 +22,20 @@ Tokens expire after **30 days**.
 
 ## Endpoints
 
+### Delete Account
+```
+DELETE /account
+```
+```json
+{ "confirm": true }
+```
+Permanently deletes the user and all associated data, active events, and S3 files.
+
+**`200`** `{"message": "account deleted successfully"}`
+**`400`** `{"error": "confirmation required"}`
+
+---
+
 ### Health Check
 ```
 GET /health
@@ -135,13 +149,22 @@ GET /events/:id
 ```
 GET /events
 GET /events?filter=active
+GET /events?page=2&limit=10
 ```
 - Default / `filter=all` — all events, newest first.
 - `filter=active` — non-terminated only, soonest expiry first.
+- `page` — page number (default: 1).
+- `limit` — items per page (default: 20).
 
 **`200`**
 ```json
-{ "events": [ ... ] }
+{
+  "events": [ ... ],
+  "total_count": 42,
+  "page": 1,
+  "limit": 20,
+  "has_more": true
+}
 ```
 
 ---
@@ -164,6 +187,18 @@ DELETE /events/:id
 Terminates the event without checking in.
 
 **`200`** `{"message": "event cancelled"}`
+
+---
+
+### Delete Event History
+```
+DELETE /events/:id/history
+```
+Permanently removes DB records and S3 attachments for a terminated event.
+
+**`200`** `{"message": "event history deleted"}`
+**`400`** `{"error": "cannot delete an active event"}`
+**`404`** — event not found.
 
 ---
 
@@ -225,7 +260,18 @@ Deletes a staged file. Cannot delete files already attached to an event.
 
 **`200`** `{"message": "file deleted"}`
 **`404`** — file not found, not owned by user, or already attached.
+
+---
+
+### Download File
 ```
+GET /files/:id/download
+```
+Streams the file binary for any file (staged or attached) owned by the user.
+
+**`200`** (Returns file stream with `Content-Disposition: attachment`)
+**`400`** — invalid UUID format.
+**`404`** — file not found.
 
 ---
 
@@ -396,7 +442,6 @@ All errors:
 | Limitation | Impact on App |
 |------------|---------------|
 | SES Sandbox Mode | Emails only send to verified addresses. Contacts must be pre-verified in AWS SES until production access is granted. |
-| No pagination | `GET /events` returns all events. |
 | No JWT revocation | Tokens can't be invalidated before 30-day expiry. |
 
 ---

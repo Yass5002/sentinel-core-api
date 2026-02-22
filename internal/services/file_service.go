@@ -196,3 +196,51 @@ func (s *FileService) DownloadFile(ctx context.Context, objectKey string) ([]byt
 
 	return data, nil
 }
+
+// DeleteAllUserFilesFromS3 deletes all files owned by the user from S3.
+func (s *FileService) DeleteAllUserFilesFromS3(ctx context.Context, userID uuid.UUID) error {
+	var files []models.Artifact
+	if err := s.db.Where("entity_id = ?", userID).Find(&files).Error; err != nil {
+		return fmt.Errorf("failed to fetch user files: %w", err)
+	}
+
+	for _, artifact := range files {
+		_, err := s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+			Bucket: aws.String(s.cfg.S3Bucket),
+			Key:    aws.String(artifact.AssetKey),
+		})
+		if err != nil {
+			log.Printf("Warning: failed to delete S3 object %s during account deletion: %v", artifact.AssetKey, err)
+		}
+	}
+	return nil
+}
+
+// DeleteEventFilesFromS3 deletes all files attached to a specific event from S3.
+func (s *FileService) DeleteEventFilesFromS3(ctx context.Context, eventID, userID uuid.UUID) error {
+	var files []models.Artifact
+	if err := s.db.Where("sequence_id = ? AND entity_id = ?", eventID, userID).Find(&files).Error; err != nil {
+		return fmt.Errorf("failed to fetch event files: %w", err)
+	}
+
+	for _, artifact := range files {
+		_, err := s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+			Bucket: aws.String(s.cfg.S3Bucket),
+			Key:    aws.String(artifact.AssetKey),
+		})
+		if err != nil {
+			log.Printf("Warning: failed to delete S3 object %s during event deletion: %v", artifact.AssetKey, err)
+		}
+	}
+	return nil
+}
+
+// GetFile retrieves an artifact by ID, ensuring the user owns it. Support staged and attached.
+func (s *FileService) GetFile(ctx context.Context, fileID, userID uuid.UUID) (*models.Artifact, error) {
+	var artifact models.Artifact
+	result := s.db.Where("id = ? AND entity_id = ?", fileID, userID).First(&artifact)
+	if result.Error != nil {
+		return nil, fmt.Errorf("file not found or unauthorized: %w", result.Error)
+	}
+	return &artifact, nil
+}
