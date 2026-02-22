@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Automated Notification</title>
+    <style>
+        /* Reset styles */
+        body { margin: 0; padding: 0; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+        
+        /* Font import */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+    </style>
+</head>
+<body style="background-color: #ffffff; font-family: 'Inter', Helvetica, Arial, sans-serif; color: #0F1111; line-height: 1.6; margin: 0; padding: 0;">
+
+    <!-- Main Wrapper -->
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; padding: 20px 0;">
+        <tr>
+            <td align="center">
+                
+                <!-- Content Container (Max width 600px) -->
+                <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%; text-align: left;">
+                    
+                    <!-- Logo Section (Orange) -->
+                    <tr>
+                        <td style="padding: 20px 0 25px 0;">
+                             <img src="https://sentinel-email-assets-355458268570.s3.amazonaws.com/logo-orange.png" alt="Sentinel Logo" width="80" style="display: block; width: 80px; height: auto;">
+                        </td>
+                    </tr>
+
+                    <!-- Clear Heading -->
+                    <tr>
+                        <td style="padding-bottom: 20px;">
+                            <h1 style="font-size: 22px; font-weight: 700; margin: 0; color: #0F1111;">
+                                Automated Status Notification
+                            </h1>
+                        </td>
+                    </tr>
+
+                    <!-- Explicit Intro -->
+                    <tr>
+                        <td style="padding-bottom: 25px;">
+                            <p style="font-size: 15px; margin: 0 0 15px 0; color: #0F1111;">
+                                This is a pre-scheduled message from <strong>{{.UserName}}</strong> ({{.UserEmail}}).
+                            </p>
+                            <p style="font-size: 15px; margin: 0; color: #0F1111;">
+                                They configured Sentinel to automatically contact you if they failed to check in for a specific period of time. Because <strong>{{.UserName}}</strong> has not checked in, the following information has been released to you.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Context Box (Blue Info - No Emoji) -->
+                    <tr>
+                        <td style="padding-bottom: 25px;">
+                            <div style="background-color: #ebf8ff; border: 1px solid #bee3f8; border-radius: 4px; padding: 15px;">
+                                <p style="font-size: 14px; color: #2c5282; margin: 0;">
+                                    <strong>CONTEXT:</strong> This message was pre-written by the user. It is not a live communication. It was released automatically because the user did not verify their safety status.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- User's Message Block -->
+                    <tr>
+                        <td style="padding-bottom: 30px;">
+                            <p style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #555555; margin: 0 0 8px 0;">
+                                Message from {{.UserName}}:
+                            </p>
+                            <div style="background-color: #f7f9fa; border: 1px solid #eaeded; border-radius: 4px; padding: 25px;">
+                                <p style="font-size: 15px; line-height: 1.6; font-style: italic; color: #333333; margin: 0; white-space: pre-wrap;">"{{.Message}}"</p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Location Data + Disclaimer -->
+                    <tr>
+                        <td style="padding-bottom: 30px;">
+                             <p style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #555555; margin: 0 0 8px 0;">
+                                Last Known Location
+                            </p>
+                            <p style="font-size: 15px; color: #0F1111; margin: 0;">
+                                {{.Location}}
+                            </p>
+                            <p style="font-size: 12px; color: #666666; margin: 5px 0 0 0; font-style: italic;">
+                                Note: Location data is based on the last available signal and may not be exact.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Attached Files Section -->
+                    {{if .Attachments}}
+                    <tr>
+                        <td style="padding-bottom: 40px;">
+                            <p style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #555555; margin: 0 0 12px 0;">
+                                Attached Files ({{len .Attachments}})
+                            </p>
+                            <div style="background-color: #f7f9fa; border: 1px solid #eaeded; border-radius: 4px; padding: 0;">
+                                {{range $i, $a := .Attachments}}
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" {{if $i}}style="border-top: 1px solid #eaeded;"{{end}}>
+                                    <tr>
+                                        <td style="padding: 14px 18px;">
+                                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                                <tr>
+                                                    <td style="font-size: 15px; font-weight: 500; color: #0F1111;">
+                                                        &#128206; {{$a.Filename}}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="font-size: 12px; color: #888888; padding-top: 3px;">
+                                                        {{$a.Size}} &middot; {{$a.MimeType}}
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </table>
+                                {{end}}
+                            </div>
+                            <p style="font-size: 12px; color: #666666; margin: 8px 0 0 0; font-style: italic;">
+                                These files are included as email attachments. Check your email client's attachment area to download them.
+                            </p>
+                        </td>
+                    </tr>
+                    {{end}}
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f0f2f5; padding: 30px; border-top: 1px solid #eaeded;">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td style="padding-bottom: 15px;">
+                                         <p style="font-size: 12px; color: #565959; margin: 0 0 5px 0; font-family: monospace;">
+                                            Event ID: {{.EventCreated}}
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <p style="font-size: 11px; color: #565959; margin: 0 0 20px 0; line-height: 1.5;">
+                                            &copy; 2026 Sentinel YSSN Inc. All rights reserved.<br>
+                                            This is an automated message from the Sentinel Dead Man's Switch service.<br>
+                                            Meknes, Fez-Meknès, Morocco.
+                                        </p>
+                                        <!-- Footer Logo (Grey) -->
+                                        <img src="https://sentinel-email-assets-355458268570.s3.amazonaws.com/logo-grey.png" alt="Sentinel" width="50" style="display: block; width: 50px; opacity: 0.7;">
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
