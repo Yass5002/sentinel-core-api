@@ -62,6 +62,7 @@ func (s *AuthService) SendOTP(ctx context.Context, emailAddr string) error {
 	body, err := s.tmpl.RenderOTP(templates.OTPData{
 		Code:          otp,
 		ExpiryMinutes: s.cfg.OTPExpiryMinutes,
+		AssetsBaseURL: s.cfg.EmailAssetsBaseURL,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to render OTP email: %w", err)

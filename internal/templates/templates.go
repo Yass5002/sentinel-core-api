@@ -9,8 +9,9 @@ import (
 
 // OTPData holds the data for the OTP verification email template.
 type OTPData struct {
-	Code          string
-	ExpiryMinutes int
+	Code           string
+	ExpiryMinutes  int
+	AssetsBaseURL  string
 }
 
 // AttachmentInfo holds display metadata for a file attachment.
@@ -22,13 +23,14 @@ type AttachmentInfo struct {
 
 // AlertData holds the data for the dead man's switch alert email template.
 type AlertData struct {
-	UserName     string
-	UserEmail    string
-	Message      string
-	Location     template.HTML // pre-sanitised HTML, won't be escaped
-	EventCreated string
-	TimerExpired string
-	Attachments  []AttachmentInfo
+	UserName      string
+	UserEmail     string
+	Message       string
+	Location      template.HTML // pre-sanitised HTML, won't be escaped
+	EventCreated  string
+	TimerExpired  string
+	Attachments   []AttachmentInfo
+	AssetsBaseURL string
 }
 
 // Engine loads and renders HTML templates from disk.

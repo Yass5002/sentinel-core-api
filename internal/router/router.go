@@ -8,6 +8,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"github.com/sentinel-app/sentinel/internal/config"
 	"github.com/sentinel-app/sentinel/internal/handlers"
 	"github.com/sentinel-app/sentinel/internal/middleware"
 	"github.com/sentinel-app/sentinel/internal/services"
@@ -17,6 +18,7 @@ import (
 // Setup configures all routes, CORS, trusted proxies, and middleware.
 func Setup(
 	r *gin.Engine,
+	cfg *config.Config,
 	authHandler *handlers.AuthHandler,
 	eventHandler *handlers.EventHandler,
 	locationHandler *handlers.LocationHandler,
@@ -49,13 +51,9 @@ func Setup(
 		"131.0.72.0/22",
 	})
 
-	// CORS — allow your frontend origins
+	// CORS — origins are configured via CORS_ALLOWED_ORIGINS env var
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-			"https://sentinel.yssn.tech",
-			"https://app.sentinel.yssn.tech",
-			"http://localhost:3000", // local dev
-		},
+		AllowOrigins:     cfg.CORSOrigins,
 		AllowMethods:     []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},

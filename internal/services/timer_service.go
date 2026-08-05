@@ -226,13 +226,14 @@ func (s *TimerService) handleExpiration(ctx context.Context, eventID uuid.UUID) 
 	}
 
 	htmlBody, err := s.tmpl.RenderAlert(templates.AlertData{
-		UserName:     entity.Alias,
-		UserEmail:    entity.Signal,
-		Message:      sequence.Payload,
-		Location:     template.HTML(strings.ReplaceAll(locationText, "\n", "<br>")),
-		EventCreated: sequence.CreatedAt.Format(time.RFC3339),
-		TimerExpired: sequence.Horizon.Format(time.RFC3339),
-		Attachments:  attachmentInfos,
+		UserName:      entity.Alias,
+		UserEmail:     entity.Signal,
+		Message:       sequence.Payload,
+		Location:      template.HTML(strings.ReplaceAll(locationText, "\n", "<br>")),
+		EventCreated:  sequence.CreatedAt.Format(time.RFC3339),
+		TimerExpired:  sequence.Horizon.Format(time.RFC3339),
+		Attachments:   attachmentInfos,
+		AssetsBaseURL: s.cfg.EmailAssetsBaseURL,
 	})
 	if err != nil {
 		log.Printf("Failed to render alert email: %v", err)

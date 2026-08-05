@@ -1,6 +1,7 @@
 .env
 *.exe
 *.out
+*.log
 /tmp/
 vendor/
 sentinel-server

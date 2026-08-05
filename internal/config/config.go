@@ -38,6 +38,9 @@ type Config struct {
 	SESFromOTP   string
 	SESFromAlert string
 
+	// Email
+	EmailAssetsBaseURL string
+
 	// OTP
 	OTPLength        int
 	OTPExpiryMinutes int
@@ -47,6 +50,9 @@ type Config struct {
 
 	// File Upload
 	MaxFileSizeMB int
+
+	// CORS
+	CORSOrigins []string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -76,12 +82,16 @@ func Load() *Config {
 		SESFromOTP:   requireEnv("SES_FROM_OTP"),
 		SESFromAlert: requireEnv("SES_FROM_ALERT"),
 
+		EmailAssetsBaseURL: getEnv("EMAIL_ASSETS_BASE_URL", ""),
+
 		OTPLength:        getEnvInt("OTP_LENGTH", 6),
 		OTPExpiryMinutes: getEnvInt("OTP_EXPIRY_MINUTES", 5),
 
 		TemplatesDir: getEnv("TEMPLATES_DIR", "internal/templates/html"),
 
 		MaxFileSizeMB: getEnvInt("MAX_FILE_SIZE_MB", 10),
+
+		CORSOrigins: getEnvSlice("CORS_ALLOWED_ORIGINS", []string{"http://localhost:3000"}),
 	}
 
 	return cfg
@@ -106,6 +116,23 @@ func getEnvInt(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
+		}
+	}
+	return fallback
+}
+
+// getEnvSlice reads a comma-separated environment variable into a string slice.
+func getEnvSlice(key string, fallback []string) []string {
+	if v := os.Getenv(key); v != "" {
+		parts := strings.Split(v, ",")
+		result := make([]string, 0, len(parts))
+		for _, p := range parts {
+			if trimmed := strings.TrimSpace(p); trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		if len(result) > 0 {
+			return result
 		}
 	}
 	return fallback
